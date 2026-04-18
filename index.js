@@ -5,6 +5,7 @@ const sqlite3 = require("sqlite3").verbose();
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // 🔥 ОБЯЗАТЕЛЬНО
 
 // БД (локально ок; на Render для демо тоже ок)
 const db = new sqlite3.Database("./db.sqlite");
@@ -15,6 +16,10 @@ CREATE TABLE IF NOT EXISTS leads (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT,
   phone TEXT,
+  product TEXT,
+  city TEXT,
+  condition TEXT,
+  description TEXT,
   status TEXT DEFAULT 'new',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )
@@ -63,14 +68,21 @@ app.put("/leads/:id", (req, res) => {
 
 // 🔥 Webhook от Tilda
 app.post("/tilda", (req, res) => {
+  console.log("🔥 TILDA:", req.body);
+
   const data = req.body;
 
-  const name = data.Name || data.name || "Без имени";
-  const phone = data.Phone || data.phone || "Нет телефона";
+  const product = data.name || "";
+  const description = data.about || "";
+  const phone = data.phone || "";
+  const city = data.city || "";
+  const condition = data.description || "";
 
   db.run(
-    "INSERT INTO leads (name, phone) VALUES (?, ?)",
-    [name, phone],
+    `INSERT INTO leads 
+    (name, product, phone, city, condition, description) 
+    VALUES (?, ?, ?, ?, ?, ?)`,
+    [product, product, phone, city, condition, description],
     function () {
       res.json({ success: true });
     }
