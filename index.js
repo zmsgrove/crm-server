@@ -1,27 +1,12 @@
 const express = require("express");
 const cors = require("cors");
 const sqlite3 = require("sqlite3").verbose();
-const multer = require("multer");
-const cloudinary = require("cloudinary").v2;
-const cron = require("node-cron");
-const fs = require("fs");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// ================= НАСТРОЙКА CLOUDINARY =================
-// ⚠️ ВСТАВЬ СВОИ ДАННЫЕ
-require("dotenv").config();
-
-cloudinary.config({
-  secure: true
-});
-
-// ================= UPLOAD =================
-const upload = multer({ dest: "uploads/" });
 
 // ================= СТАТУСЫ =================
 const STATUSES = [
@@ -45,7 +30,6 @@ CREATE TABLE IF NOT EXISTS leads (
   city TEXT,
   condition TEXT,
   description TEXT,
-  image TEXT,
   history TEXT,
   status TEXT DEFAULT 'new',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -96,38 +80,6 @@ app.put("/leads/:id", (req, res) => {
           res.json({ ok: true });
         }
       );
-    }
-  );
-});
-
-// ================= UPLOAD IMAGE =================
-app.post("/upload", upload.single("file"), async (req, res) => {
-  try {
-    const result = await cloudinary.uploader.upload(req.file.path);
-
-    // удаляем временный файл
-    fs.unlinkSync(req.file.path);
-
-    res.json({
-      url: result.secure_url,
-      public_id: result.public_id,
-    });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e });
-  }
-});
-
-// ================= СОХРАНИТЬ ФОТО В ЛИД =================
-app.put("/leads/:id/image", (req, res) => {
-  const { image } = req.body;
-
-  db.run(
-    "UPDATE leads SET image=? WHERE id=?",
-    [image, req.params.id],
-    function (err) {
-      if (err) return res.status(500).json({ error: err });
-      res.json({ ok: true });
     }
   );
 });
@@ -194,21 +146,6 @@ app.post("/tilda", (req, res) => {
       res.json({ success: true });
     }
   );
-});
-
-// ================= АВТО ОЧИСТКА (РАЗ В НЕДЕЛЮ) =================
-cron.schedule("0 0 * * 0", async () => {
-  console.log("🔥 CLEANING CLOUDINARY");
-
-  try {
-    const resources = await cloudinary.api.resources();
-
-    for (let file of resources.resources) {
-      await cloudinary.uploader.destroy(file.public_id);
-    }
-  } catch (e) {
-    console.error("CLEAN ERROR", e);
-  }
 });
 
 // ================= СТАРТ =================
