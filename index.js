@@ -6,9 +6,8 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // 🔥 для Tilda
+app.use(express.urlencoded({ extended: true }));
 
-// ✅ допустимые статусы
 const STATUSES = [
   "new",
   "evaluation",
@@ -18,7 +17,6 @@ const STATUSES = [
   "fail",
 ];
 
-// БД
 const db = new sqlite3.Database("./db.sqlite");
 
 // таблица
@@ -31,6 +29,7 @@ CREATE TABLE IF NOT EXISTS leads (
   city TEXT,
   condition TEXT,
   description TEXT,
+  history TEXT,
   status TEXT DEFAULT 'new',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )
@@ -41,7 +40,7 @@ app.get("/", (req, res) => {
   res.send("CRM SERVER WORKING");
 });
 
-// получить все заявки
+// получить заявки
 app.get("/leads", (req, res) => {
   db.all("SELECT * FROM leads ORDER BY id DESC", (err, rows) => {
     if (err) return res.status(500).json({ error: err });
@@ -49,21 +48,7 @@ app.get("/leads", (req, res) => {
   });
 });
 
-// ручное добавление
-app.post("/leads", (req, res) => {
-  const { name, phone } = req.body;
-
-  db.run(
-    "INSERT INTO leads (name, phone) VALUES (?, ?)",
-    [name, phone],
-    function (err) {
-      if (err) return res.status(500).json({ error: err });
-      res.json({ id: this.lastID });
-    }
-  );
-});
-
-// 🔥 обновление статуса (с проверкой)
+// обновление статуса + история
 app.put("/leads/:id", (req, res) => {
   const { status } = req.body;
 
@@ -71,40 +56,79 @@ app.put("/leads/:id", (req, res) => {
     return res.status(400).json({ error: "Invalid status" });
   }
 
-  db.run(
-    "UPDATE leads SET status=? WHERE id=?",
-    [status, req.params.id],
-    function (err) {
-      if (err) return res.status(500).json({ error: err });
-      res.json({ ok: true });
-    }
-  );
+  db.get("SELECT history FROM leads WHERE id=?", [req.params.id], (err, row) => {
+    let history = [];
+
+    try {
+      history = JSON.parse(row?.history || "[]");
+    } catch {}
+
+    history.push({
+      status,
+      time: new Date().toLocaleString(),
+    });
+
+    db.run(
+      "UPDATE leads SET status=?, history=? WHERE id=?",
+      [status, JSON.stringify(history), req.params.id],
+      function (err) {
+        if (err) return res.status(500).json({ error: err });
+        res.json({ ok: true });
+      }
+    );
+  });
 });
 
-// 🔥 Webhook от Tilda
+// 🔥 Tilda webhook (исправленный)
 app.post("/tilda", (req, res) => {
   console.log("🔥 TILDA:", req.body);
 
   const data = req.body;
 
-  const product = data.name?.trim() || "";        // товар
-  const description = data.about?.trim() || "";   // описание товара
-  const phone = data.phone?.trim() || "";
-  const city = data.city?.trim() || "";
-  const condition = data.description?.trim() || ""; // состояние
+  const product =
+    data.name ||
+    data.product ||
+    data["Название товара"] ||
+    "";
+
+  const description =
+    data.about ||
+    data.description ||
+    data.message ||
+    data.text ||
+    "";
+
+  const phone = data.phone || data.tel || "";
+
+  const city =
+    data.city ||
+    data["Город"] ||
+    "";
+
+  const condition =
+    data.condition ||
+    data.state ||
+    "";
 
   db.run(
     `INSERT INTO leads 
-    (name, product, phone, city, condition, description) 
-    VALUES (?, ?, ?, ?, ?, ?)`,
-    [product, product, phone, city, condition, description],
+    (name, product, phone, city, condition, description, history) 
+    VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      product,
+      product,
+      phone,
+      city,
+      condition,
+      description,
+      JSON.stringify([{ status: "new", time: new Date().toLocaleString() }]),
+    ],
     function () {
       res.json({ success: true });
     }
   );
 });
 
-// запуск
 const PORT = process.env.PORT || 3001;
 
 app.listen(PORT, () => {
