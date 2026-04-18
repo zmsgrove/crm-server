@@ -3,14 +3,25 @@ const cors = require("cors");
 const sqlite3 = require("sqlite3").verbose();
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // 🔥 ОБЯЗАТЕЛЬНО
+app.use(express.urlencoded({ extended: true })); // 🔥 для Tilda
 
-// БД (локально ок; на Render для демо тоже ок)
+// ✅ допустимые статусы
+const STATUSES = [
+  "new",
+  "evaluation",
+  "priced",
+  "waiting",
+  "success",
+  "fail",
+];
+
+// БД
 const db = new sqlite3.Database("./db.sqlite");
 
-// Создание таблицы
+// таблица
 db.run(`
 CREATE TABLE IF NOT EXISTS leads (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,12 +36,12 @@ CREATE TABLE IF NOT EXISTS leads (
 )
 `);
 
-// Проверка сервера
+// проверка
 app.get("/", (req, res) => {
   res.send("CRM SERVER WORKING");
 });
 
-// Получить все заявки
+// получить все заявки
 app.get("/leads", (req, res) => {
   db.all("SELECT * FROM leads ORDER BY id DESC", (err, rows) => {
     if (err) return res.status(500).json({ error: err });
@@ -38,7 +49,7 @@ app.get("/leads", (req, res) => {
   });
 });
 
-// Добавить заявку вручную
+// ручное добавление
 app.post("/leads", (req, res) => {
   const { name, phone } = req.body;
 
@@ -52,9 +63,13 @@ app.post("/leads", (req, res) => {
   );
 });
 
-// Обновить статус
+// 🔥 обновление статуса (с проверкой)
 app.put("/leads/:id", (req, res) => {
   const { status } = req.body;
+
+  if (!STATUSES.includes(status)) {
+    return res.status(400).json({ error: "Invalid status" });
+  }
 
   db.run(
     "UPDATE leads SET status=? WHERE id=?",
@@ -72,11 +87,11 @@ app.post("/tilda", (req, res) => {
 
   const data = req.body;
 
-  const product = data.name || "";
-  const description = data.about || "";
-  const phone = data.phone || "";
-  const city = data.city || "";
-  const condition = data.description || "";
+  const product = data.name?.trim() || "";        // товар
+  const description = data.about?.trim() || "";   // описание товара
+  const phone = data.phone?.trim() || "";
+  const city = data.city?.trim() || "";
+  const condition = data.description?.trim() || ""; // состояние
 
   db.run(
     `INSERT INTO leads 
@@ -89,7 +104,7 @@ app.post("/tilda", (req, res) => {
   );
 });
 
-// Порт (ВАЖНО для Render)
+// запуск
 const PORT = process.env.PORT || 3001;
 
 app.listen(PORT, () => {
