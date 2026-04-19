@@ -175,6 +175,39 @@ app.put("/leads/:id", (req, res) => {
   });
 });
 
+// ===== TILDA WEBHOOK =====
+app.get("/tilda", (req, res) => {
+  res.send("TILDA OK");
+});
+app.post("/tilda", (req, res) => {
+  console.log("🔥 TILDA RAW BODY:", req.body);
+
+  const data = req.body;
+
+  // адаптация под Tilda (поля могут отличаться)
+  const name = data.name || data.Name || data["Имя"] || "";
+  const phone = data.phone || data.Phone || data["Телефон"] || "";
+  const product = data.product || data.Product || data["Товар"] || "";
+  const city = data.city || data.City || data["Город"] || "";
+
+  db.run(
+    `
+    INSERT INTO leads (name, phone, product, city, status, created_at)
+    VALUES (?, ?, ?, ?, 'new', datetime('now'))
+    `,
+    [name, phone, product, city],
+    (err) => {
+      if (err) {
+        console.error("❌ DB INSERT ERROR:", err);
+        return res.status(500).json({ error: err });
+      }
+
+      console.log("✅ ЛИД СОХРАНЕН В БД");
+      res.sendStatus(200);
+    }
+  );
+});
+
 // ===== START =====
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
