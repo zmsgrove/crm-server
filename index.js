@@ -1,9 +1,16 @@
 console.log("MY SERVER VERSION 123");
+
 const express = require("express");
 const cors = require("cors");
 const sqlite3 = require("sqlite3").verbose();
 
 const app = express();
+
+// ===== DEBUG REQUESTS (ДОБАВИЛ) =====
+app.use((req, res, next) => {
+  console.log("REQ:", req.method, req.url);
+  next();
+});
 
 app.use(cors());
 app.use(express.json());
@@ -19,6 +26,16 @@ const STATUSES = [
 ];
 
 const db = new sqlite3.Database("./db.sqlite");
+
+// ===== TEST ROUTE (ДОБАВИЛ) =====
+app.get("/test", (req, res) => {
+  res.json({ ok: true, version: 123 });
+});
+
+// ===== ROOT =====
+app.get("/", (req, res) => {
+  res.send("CRM SERVER WORKING");
+});
 
 // ===== LEADS =====
 db.run(`
@@ -46,7 +63,7 @@ CREATE TABLE IF NOT EXISTS users (
 )
 `);
 
-// 🔥 ДОБАВЛЯЕМ ПОЛЬЗОВАТЕЛЕЙ АВТО
+// ===== USERS SEED =====
 db.serialize(() => {
   const users = [
     { login: "admin", password: "Skupka2026ad", role: "admin" },
@@ -63,23 +80,33 @@ db.serialize(() => {
   });
 });
 
-app.get("/", (req, res) => {
-  res.send("CRM SERVER WORKING");
-});
-
 // ===== LOGIN =====
 app.post("/api/auth/login", (req, res) => {
-  const { login, password } = req.body;
+  console.log("LOGIN HIT BODY:", req.body);
+
+  let { login, password } = req.body;
+
+  // 🔥 fallback если вдруг тело пустое
+  if (!login && req.query.login) {
+    login = req.query.login;
+    password = req.query.password;
+  }
 
   db.get(
     "SELECT * FROM users WHERE login=? AND password=?",
     [login, password],
     (err, user) => {
-      if (err) return res.status(500).json({ error: err });
+      if (err) {
+        console.error("DB ERROR:", err);
+        return res.status(500).json({ error: err });
+      }
 
       if (!user) {
+        console.log("LOGIN FAILED:", login);
         return res.status(401).json({ error: "Неверный логин или пароль" });
       }
+
+      console.log("LOGIN SUCCESS:", login);
 
       res.json(user);
     }
@@ -89,6 +116,8 @@ app.post("/api/auth/login", (req, res) => {
 // ===== LEADS =====
 app.get("/leads", (req, res) => {
   const role = req.headers["x-role"];
+
+  console.log("GET LEADS ROLE:", role);
 
   let query = "SELECT * FROM leads";
   let params = [];
