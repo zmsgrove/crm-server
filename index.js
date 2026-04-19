@@ -8,7 +8,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ================= СТАТУСЫ =================
 const STATUSES = [
   "new",
   "evaluation",
@@ -18,9 +17,9 @@ const STATUSES = [
   "fail",
 ];
 
-// ================= БАЗА =================
 const db = new sqlite3.Database("./db.sqlite");
 
+// ===== LEADS =====
 db.run(`
 CREATE TABLE IF NOT EXISTS leads (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,121 +35,118 @@ CREATE TABLE IF NOT EXISTS leads (
 )
 `);
 
-// ================= ROOT =================
+// ===== USERS =====
+db.run(`
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  login TEXT UNIQUE,
+  password TEXT,
+  role TEXT
+)
+`);
+
+// 🔥 ДОБАВЛЯЕМ ПОЛЬЗОВАТЕЛЕЙ АВТО
+db.serialize(() => {
+  const users = [
+    { login: "admin", password: "Skupka2026ad", role: "admin" },
+    { login: "uralsk", password: "Oral2026uu", role: "uralsk" },
+    { login: "atyrau", password: "Skupka26aa", role: "atyrau" },
+    { login: "aktobe", password: "Begdos1020", role: "aktobe" },
+  ];
+
+  users.forEach((u) => {
+    db.run(
+      `INSERT OR IGNORE INTO users (login, password, role) VALUES (?, ?, ?)`,
+      [u.login, u.password, u.role]
+    );
+  });
+});
+
 app.get("/", (req, res) => {
   res.send("CRM SERVER WORKING");
 });
 
-// ================= GET LEADS =================
+// ===== LOGIN =====
+app.post("/api/auth/login", (req, res) => {
+  const { login, password } = req.body;
+
+  db.get(
+    "SELECT * FROM users WHERE login=? AND password=?",
+    [login, password],
+    (err, user) => {
+      if (err) return res.status(500).json({ error: err });
+
+      if (!user) {
+        return res.status(401).json({ error: "Неверный логин или пароль" });
+      }
+
+      res.json(user);
+    }
+  );
+});
+
+// ===== LEADS =====
 app.get("/leads", (req, res) => {
-  db.all("SELECT * FROM leads ORDER BY id DESC", (err, rows) => {
-    if (err) return res.status(500).json({ error: err });
+  const role = req.headers["x-role"];
+
+  let query = "SELECT * FROM leads";
+  let params = [];
+
+  if (role === "uralsk") {
+    query += " WHERE city=?";
+    params.push("Уральск");
+  }
+
+  if (role === "atyrau") {
+    query += " WHERE city=?";
+    params.push("Атырау");
+  }
+
+  if (role === "aktobe") {
+    query += " WHERE city=?";
+    params.push("Актобе");
+  }
+
+  query += " ORDER BY id DESC";
+
+  db.all(query, params, (err, rows) => {
+    if (err) return res.status(500).json(err);
     res.json(rows);
   });
 });
 
-// ================= UPDATE STATUS =================
+// ===== UPDATE =====
 app.put("/leads/:id", (req, res) => {
   const { status } = req.body;
+  const role = req.headers["x-role"];
 
-  if (!STATUSES.includes(status)) {
-    return res.status(400).json({ error: "Invalid status" });
-  }
+  db.get("SELECT * FROM leads WHERE id=?", [req.params.id], (err, lead) => {
+    if (!lead) return res.status(404).json({ error: "Not found" });
 
-  db.get(
-    "SELECT history FROM leads WHERE id=?",
-    [req.params.id],
-    (err, row) => {
-      let history = [];
+    if (role === "uralsk" && lead.city !== "Уральск") return res.sendStatus(403);
+    if (role === "atyrau" && lead.city !== "Атырау") return res.sendStatus(403);
+    if (role === "aktobe" && lead.city !== "Актобе") return res.sendStatus(403);
 
-      try {
-        history = JSON.parse(row?.history || "[]");
-      } catch {}
+    let history = [];
+    try {
+      history = JSON.parse(lead.history || "[]");
+    } catch {}
 
-      history.push({
-        status,
-        time: new Date().toLocaleString(),
-      });
+    history.push({
+      status,
+      time: new Date().toLocaleString(),
+    });
 
-      db.run(
-        "UPDATE leads SET status=?, history=? WHERE id=?",
-        [status, JSON.stringify(history), req.params.id],
-        function (err) {
-          if (err) return res.status(500).json({ error: err });
-          res.json({ ok: true });
-        }
-      );
-    }
-  );
+    db.run(
+      "UPDATE leads SET status=?, history=? WHERE id=?",
+      [status, JSON.stringify(history), req.params.id],
+      () => res.json({ ok: true })
+    );
+  });
 });
 
-// ================= TILDA WEBHOOK =================
-app.post("/tilda", (req, res) => {
-  console.log("🔥 TILDA:", req.body);
-
-  const data = req.body;
-
-  const product =
-    data.name ||
-    data.product ||
-    data["Название товара"] ||
-    "";
-
-  const description =
-    data.about ||
-    data.description ||
-    data.message ||
-    data.text ||
-    data.comment ||
-    "";
-
-  const phone = data.phone || data.tel || "";
-
-  const city =
-    data.city ||
-    data["Город"] ||
-    "";
-
-  const condition =
-    data.condition ||
-    data.state ||
-    data.status ||
-    "";
-
-  const name =
-    data.client ||
-    data.username ||
-    "";
-
-  db.run(
-    `INSERT INTO leads 
-    (name, product, phone, city, condition, description, history) 
-    VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [
-      name,
-      product,
-      phone,
-      city,
-      condition,
-      description,
-      JSON.stringify([
-        { status: "new", time: new Date().toLocaleString() },
-      ]),
-    ],
-    function (err) {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({ error: err });
-      }
-
-      res.json({ success: true });
-    }
-  );
-});
-
-// ================= СТАРТ =================
+// ===== START =====
 const PORT = process.env.PORT || 3001;
-
 app.listen(PORT, () => {
   console.log("SERVER RUNNING ON PORT " + PORT);
 });
