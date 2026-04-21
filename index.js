@@ -25,7 +25,22 @@ const STATUSES = [
   "fail",
 ];
 
-const db = new sqlite3.Database("./db.sqlite");
+db.serialize(() => {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      lead_id INTEGER,
+      phone TEXT,
+      text TEXT,
+      direction TEXT,
+      external_id TEXT UNIQUE,
+      created_at DATETIME,
+      read INTEGER DEFAULT 0
+    )
+  `);
+
+  db.run(`CREATE INDEX IF NOT EXISTS idx_messages_lead_id ON messages(lead_id)`);
+});
 
 // ===== HELPERS =====
 function normalizePhone(phone) {
