@@ -3,6 +3,7 @@ console.log("MY SERVER VERSION 123");
 const express = require("express");
 const cors = require("cors");
 const sqlite3 = require("sqlite3").verbose();
+const db = new sqlite3.Database("./db.sqlite");
 
 const app = express();
 
@@ -25,22 +26,6 @@ const STATUSES = [
   "fail",
 ];
 
-db.serialize(() => {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      lead_id INTEGER,
-      phone TEXT,
-      text TEXT,
-      direction TEXT,
-      external_id TEXT UNIQUE,
-      created_at DATETIME,
-      read INTEGER DEFAULT 0
-    )
-  `);
-
-  db.run(`CREATE INDEX IF NOT EXISTS idx_messages_lead_id ON messages(lead_id)`);
-});
 
 // ===== HELPERS =====
 function normalizePhone(phone) {
@@ -80,21 +65,46 @@ app.get("/", (req, res) => {
   res.send("CRM SERVER WORKING");
 });
 
-// ===== LEADS =====
-db.run(`
-CREATE TABLE IF NOT EXISTS leads (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT,
-  phone TEXT,
-  product TEXT,
-  city TEXT,
-  condition TEXT,
-  description TEXT,
-  history TEXT,
-  status TEXT DEFAULT 'new',
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)
-`);
+db.serialize(() => {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS leads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      phone TEXT,
+      product TEXT,
+      city TEXT,
+      condition TEXT,
+      description TEXT,
+      history TEXT,
+      status TEXT DEFAULT 'new',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      login TEXT UNIQUE,
+      password TEXT,
+      role TEXT
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      lead_id INTEGER,
+      phone TEXT,
+      text TEXT,
+      direction TEXT,
+      external_id TEXT UNIQUE,
+      created_at DATETIME,
+      read INTEGER DEFAULT 0
+    )
+  `);
+
+  db.run(`CREATE INDEX IF NOT EXISTS idx_messages_lead_id ON messages(lead_id)`);
+});
 app.get('/messages/:leadId', (req, res) => {
   db.all(`
     SELECT * FROM messages
@@ -120,32 +130,9 @@ app.post('/messages', (req, res) => {
   });
 });
 
-// ===== USERS =====
 
-db.run(`
-CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  login TEXT UNIQUE,
-  password TEXT,
-  role TEXT
-)
 
-`);
-// ===== MESSAGES =====
-db.run(`
-CREATE TABLE IF NOT EXISTS messages (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  lead_id INTEGER,
-  phone TEXT,
-  text TEXT,
-  direction TEXT,
-  external_id TEXT UNIQUE,
-  created_at DATETIME,
-  read INTEGER DEFAULT 0
-)
-`);
 
-db.run(`CREATE INDEX IF NOT EXISTS idx_messages_lead_id ON messages(lead_id)`);
 
 // ===== USERS SEED =====
 db.serialize(() => {
@@ -301,7 +288,12 @@ app.post('/wazzup/webhook', async (req, res) => {
     if (event.type === 'message') {
       const msg = event.payload;
 
-      const phone = normalizePhone(msg.chatId);
+      if (!msg.chatId) {
+  console.log("⚠️ Нет chatId");
+  return res.sendStatus(200);
+}
+
+const phone = normalizePhone(msg.chatId);
       const text = msg.text || '';
       const direction = msg.isFromMe ? 'outgoing' : 'incoming';
       const externalId = msg.messageId;
@@ -317,14 +309,19 @@ if (!externalId) {
   console.log("⚠️ Нет externalId");
   return res.sendStatus(200);
 }
-      db.run(`
-        INSERT OR IGNORE INTO messages 
-        (lead_id, phone, text, direction, external_id, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `, [lead.id, phone, text, direction, externalId, createdAt]);
+db.run(`
+  INSERT OR IGNORE INTO messages 
+  (lead_id, phone, text, direction, external_id, created_at)
+  VALUES (?, ?, ?, ?, ?, ?)
+`, [lead.id, phone, text, direction, externalId, createdAt], (err) => {
+  if (err) {
+    console.error("DB ERROR:", err);
+  } else {
+    console.log("✅ Сообщение сохранено");
+  }
+});
 
-      console.log("✅ Сообщение сохранено");
-    }
+}
 
     res.sendStatus(200);
   } catch (err) {
