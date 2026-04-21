@@ -207,6 +207,8 @@ app.post("/api/auth/login", (req, res) => {
 });
 
 // ===== LEADS =====
+
+// 📥 ПОЛУЧЕНИЕ ЛИДОВ
 app.get("/leads", (req, res) => {
   const role = req.headers["x-role"];
 
@@ -215,6 +217,17 @@ app.get("/leads", (req, res) => {
   let query = "SELECT * FROM leads";
   let params = [];
 
+  // ✅ ADMIN ВИДИТ ВСЁ
+  if (role === "admin") {
+    query += " ORDER BY id DESC";
+
+    return db.all(query, params, (err, rows) => {
+      if (err) return res.status(500).json(err);
+      res.json(rows);
+    });
+  }
+
+  // ✅ ФИЛЬТР ПО ГОРОДАМ
   if (role === "uralsk") {
     query += " WHERE city=?";
     params.push("Уральск");
@@ -236,6 +249,42 @@ app.get("/leads", (req, res) => {
     if (err) return res.status(500).json(err);
     res.json(rows);
   });
+});
+
+
+// ➕ СОЗДАНИЕ ЛИДА (РУЧНОЕ)
+app.post("/leads", (req, res) => {
+  const { name, phone, product, city } = req.body;
+
+  // ❗ простая валидация
+  if (!phone || !city) {
+    return res.status(400).json({ error: "phone и city обязательны" });
+  }
+
+  db.run(
+    `
+    INSERT INTO leads (name, phone, product, city, status, created_at)
+    VALUES (?, ?, ?, ?, 'new', datetime('now'))
+    `,
+    [name || "", phone, product || "", city],
+    function (err) {
+      if (err) {
+        console.error("❌ DB INSERT ERROR:", err);
+        return res.status(500).json({ error: err });
+      }
+
+      console.log("✅ ЛИД СОЗДАН ВРУЧНУЮ:", this.lastID);
+
+      res.json({
+        id: this.lastID,
+        name,
+        phone,
+        product,
+        city,
+        status: "new"
+      });
+    }
+  );
 });
 
 // ===== UPDATE =====
