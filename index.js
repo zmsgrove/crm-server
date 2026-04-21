@@ -66,20 +66,15 @@ app.get("/", (req, res) => {
 });
 
 db.serialize(() => {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS leads (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT,
-      phone TEXT,
-      product TEXT,
-      city TEXT,
-      condition TEXT,
-      description TEXT,
-      history TEXT,
-      status TEXT DEFAULT 'new',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+ 	db.run(`
+  CREATE TABLE IF NOT EXISTS tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_login TEXT,
+    title TEXT,
+    status TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
 
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
@@ -151,6 +146,33 @@ db.serialize(() => {
   });
 });
 
+// ===== CHATS =====
+db.run(`
+  CREATE TABLE IF NOT EXISTS chats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    created_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+db.run(`
+  CREATE TABLE IF NOT EXISTS chat_users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id INTEGER,
+    user_login TEXT
+  )
+`);
+
+db.run(`
+  CREATE TABLE IF NOT EXISTS chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id INTEGER,
+    user_login TEXT,
+    text TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
 // ===== LOGIN =====
 app.post("/api/auth/login", (req, res) => {
   console.log("LOGIN HIT BODY:", req.body);
@@ -328,6 +350,105 @@ db.run(`
     console.error("WAZZUP ERROR:", err);
     res.sendStatus(500);
   }
+});
+
+app.post("/chats", (req, res) => {
+  const role = req.headers["x-role"];
+  const { name, users } = req.body;
+
+  if (role !== "admin") {
+    return res.status(403).json({ error: "only admin" });
+  }
+
+  db.run(
+    `INSERT INTO chats (name, created_by) VALUES (?, ?)`,
+    [name, role],
+    function () {
+      const chatId = this.lastID;
+
+      users.forEach((u) => {
+        db.run(
+          `INSERT INTO chat_users (chat_id, user_login) VALUES (?, ?)`,
+          [chatId, u]
+        );
+      });
+
+      res.json({ id: chatId });
+    }
+  );
+});
+app.get("/chats", (req, res) => {
+  const login = req.headers["x-login"];
+
+  db.all(`
+    SELECT c.*
+    FROM chats c
+    JOIN chat_users cu ON cu.chat_id = c.id
+    WHERE cu.user_login = ?
+  `, [login], (err, rows) => {
+    res.json(rows);
+  });
+});
+app.get("/chats/:id/messages", (req, res) => {
+  db.all(`
+    SELECT * FROM chat_messages
+    WHERE chat_id = ?
+    ORDER BY id ASC
+  `, [req.params.id], (err, rows) => {
+    res.json(rows);
+  });
+});
+app.post("/chats/:id/messages", (req, res) => {
+  const { text } = req.body;
+  const login = req.headers["x-login"];
+  const chatId = req.params.id;
+
+  db.run(`
+    INSERT INTO chat_messages (chat_id, user_login, text)
+    VALUES (?, ?, ?)
+  `, [chatId, login, text], () => {
+
+    // лимит 5000 сообщений
+    db.run(`
+      DELETE FROM chat_messages
+      WHERE id NOT IN (
+        SELECT id FROM chat_messages
+        WHERE chat_id = ?
+        ORDER BY id DESC
+        LIMIT 5000
+      ) AND chat_id = ?
+    `, [chatId, chatId]);
+	
+
+    res.json({ ok: true });
+  });
+});
+
+app.get("/tasks", (req, res) => {
+  const login = req.headers["x-login"];
+
+  db.all(`SELECT * FROM tasks WHERE user_login = ?`,
+    [login],
+    (err, rows) => res.json(rows)
+  );
+});
+
+app.post("/tasks", (req, res) => {
+  const login = req.headers["x-login"];
+  const { title } = req.body;
+
+  db.run(`
+    INSERT INTO tasks (title, status, user_login)
+    VALUES (?, 'new', ?)
+  `, [title, login], () => res.json({ ok: true }));
+});
+
+app.put("/tasks/:id", (req, res) => {
+  const { status } = req.body;
+
+  db.run(`
+    UPDATE tasks SET status=? WHERE id=?
+  `, [status, req.params.id], () => res.json({ ok: true }));
 });
 
 // ===== START =====
