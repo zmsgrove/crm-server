@@ -27,6 +27,34 @@ const STATUSES = [
 
 const db = new sqlite3.Database("./db.sqlite");
 
+// ===== HELPERS =====
+function normalizePhone(phone) {
+  const clean = phone.replace(/\D/g, '');
+
+  if (clean.length === 11 && clean.startsWith('8')) {
+    return clean.slice(1);
+  }
+
+  if (clean.length === 11 && clean.startsWith('7')) {
+    return clean.slice(1);
+  }
+
+  return clean.slice(-10);
+}
+
+function findLeadByPhone(phone) {
+  return new Promise((resolve, reject) => {
+    db.get(`
+      SELECT * FROM leads 
+      WHERE substr(phone, -10) = ?
+      LIMIT 1
+    `, [phone], (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+}
+
 // ===== TEST ROUTE (ДОБАВИЛ) =====
 app.get("/test", (req, res) => {
   res.json({ ok: true, version: 123 });
@@ -52,8 +80,33 @@ CREATE TABLE IF NOT EXISTS leads (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )
 `);
+app.get('/messages/:leadId', (req, res) => {
+  db.all(`
+    SELECT * FROM messages
+    WHERE lead_id = ?
+    ORDER BY created_at ASC
+  `, [req.params.leadId], (err, rows) => {
+    if (err) return res.status(500).json(err);
+    res.json(rows);
+  });
+});
+app.post('/messages', (req, res) => {
+  const { leadId, text } = req.body;
+
+  db.get(`SELECT * FROM leads WHERE id = ?`, [leadId], (err, lead) => {
+    if (!lead) return res.status(404).json({ error: 'Lead not found' });
+
+    db.run(`
+      INSERT INTO messages (lead_id, phone, text, direction, created_at)
+      VALUES (?, ?, ?, 'outgoing', datetime('now'))
+    `, [leadId, lead.phone, text]);
+
+    res.json({ success: true });
+  });
+});
 
 // ===== USERS =====
+
 db.run(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,7 +114,23 @@ CREATE TABLE IF NOT EXISTS users (
   password TEXT,
   role TEXT
 )
+
 `);
+// ===== MESSAGES =====
+db.run(`
+CREATE TABLE IF NOT EXISTS messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  lead_id INTEGER,
+  phone TEXT,
+  text TEXT,
+  direction TEXT,
+  external_id TEXT UNIQUE,
+  created_at DATETIME,
+  read INTEGER DEFAULT 0
+)
+`);
+
+db.run(`CREATE INDEX IF NOT EXISTS idx_messages_lead_id ON messages(lead_id)`);
 
 // ===== USERS SEED =====
 db.serialize(() => {
@@ -206,6 +275,47 @@ app.post("/tilda", (req, res) => {
       res.sendStatus(200);
     }
   );
+});
+// ===== WAZZUP WEBHOOK =====
+app.post('/wazzup/webhook', async (req, res) => {
+  try {
+    console.log("📩 WAZZUP:", req.body);
+
+    const event = req.body;
+
+    if (event.type === 'message') {
+      const msg = event.payload;
+
+      const phone = normalizePhone(msg.chatId);
+      const text = msg.text || '';
+      const direction = msg.isFromMe ? 'outgoing' : 'incoming';
+      const externalId = msg.messageId;
+      const createdAt = new Date(msg.timestamp || Date.now()).toISOString();
+
+      const lead = await findLeadByPhone(phone);
+
+      if (!lead) {
+        console.log("❌ Лид не найден:", phone);
+        return res.sendStatus(200);
+      }
+if (!externalId) {
+  console.log("⚠️ Нет externalId");
+  return res.sendStatus(200);
+}
+      db.run(`
+        INSERT OR IGNORE INTO messages 
+        (lead_id, phone, text, direction, external_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [lead.id, phone, text, direction, externalId, createdAt]);
+
+      console.log("✅ Сообщение сохранено");
+    }
+
+    res.sendStatus(200);
+  } catch (err) {
+    console.error("WAZZUP ERROR:", err);
+    res.sendStatus(500);
+  }
 });
 
 // ===== START =====
