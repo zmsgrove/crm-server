@@ -97,6 +97,19 @@ db.serialize(() => {
       read INTEGER DEFAULT 0
     )
   `);
+  
+  db.run(`
+  CREATE TABLE IF NOT EXISTS leads (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    phone TEXT,
+    product TEXT,
+    city TEXT,
+    status TEXT,
+    history TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
 
   db.run(`CREATE INDEX IF NOT EXISTS idx_messages_lead_id ON messages(lead_id)`);
 });
