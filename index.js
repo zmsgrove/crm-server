@@ -136,7 +136,10 @@ app.get("/leads", async (req, res) => {
 
   const { data, error } = await query;
 
-  if (error) return res.status(500).json(error);
+  if (error) {
+  console.error("SUPABASE GET ERROR:", error);
+  return res.status(500).json(error);
+}
 
   res.json(data);
 });
@@ -145,23 +148,31 @@ app.get("/leads", async (req, res) => {
 app.post("/leads", async (req, res) => {
   const { name, phone, product, city, status } = req.body;
 
+  const payload = {
+    name: name || "",
+    phone: phone || "",
+    product: product || "",
+    city: city || "",
+    status: status || "new"
+  };
+
+  console.log("CREATE LEAD PAYLOAD:", payload);
+
   const { data, error } = await supabase
     .from("leads")
-    .insert([
-      {
-        name: name || "",
-        phone,
-        product,
-        city,
-        status: status || "new"
-      }
-    ])
+    .insert([payload])
     .select();
 
-  if (error) return res.status(500).json(error);
+  if (error) {
+    console.error("SUPABASE GET ERROR:", error);
+    return res.status(500).json(error);
+  }
+
+  console.log("SUPABASE INSERT SUCCESS:", data);
 
   res.json(data[0]);
 });
+
 
 // UPDATE
 app.put("/leads/:id", async (req, res) => {
@@ -172,7 +183,10 @@ app.put("/leads/:id", async (req, res) => {
     .update({ status })
     .eq("id", req.params.id);
 
-  if (error) return res.status(500).json(error);
+  if (error) {
+  console.error("SUPABASE GET ERROR:", error);
+  return res.status(500).json(error);
+}
 
   res.json({ ok: true });
 });
