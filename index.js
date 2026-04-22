@@ -10,8 +10,6 @@ const db = new sqlite3.Database("./db.sqlite");
 // ✅ SUPABASE
 const { createClient } = require('@supabase/supabase-js');
 
-require('dotenv').config();
-
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
