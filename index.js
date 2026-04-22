@@ -193,55 +193,84 @@ app.put("/leads/:id", async (req, res) => {
 
 
 // ===== CHATS (SQLITE) =====
-app.post("/chats", (req, res) => {
+app.post("/chats", async (req, res) => {
   const role = req.headers["x-role"];
   const { name, users } = req.body;
 
   if (role !== "admin") return res.sendStatus(403);
 
-  db.run(`INSERT INTO chats (name, created_by) VALUES (?, ?)`,
-    [name, role],
-    function () {
-      const chatId = this.lastID;
+  const { data: chat, error } = await supabase
+    .from("chats")
+    .insert([{ name, created_by: role }])
+    .select()
+    .single();
 
-      users.forEach((u) => {
-        db.run(`INSERT INTO chat_users (chat_id, user_login) VALUES (?, ?)`,
-          [chatId, u]
-        );
-      });
+  if (error) {
+    console.error("CREATE CHAT ERROR:", error);
+    return res.status(500).json(error);
+  }
 
-      res.json({ id: chatId });
-    }
-  );
+  const usersData = users.map(u => ({
+    chat_id: chat.id,
+    user_login: u
+  }));
+
+  await supabase.from("chat_users").insert(usersData);
+
+  res.json(chat);
 });
 
-app.get("/chats", (req, res) => {
+app.get("/chats", async (req, res) => {
   const login = req.headers["x-login"];
 
-  db.all(`
-    SELECT c.* FROM chats c
-    JOIN chat_users cu ON cu.chat_id = c.id
-    WHERE cu.user_login = ?
-  `, [login], (err, rows) => res.json(rows));
+  const { data, error } = await supabase
+    .from("chat_users")
+    .select("chat_id, chats(*)")
+    .eq("user_login", login);
+
+  if (error) {
+    console.error("GET CHATS ERROR:", error);
+    return res.status(500).json(error);
+  }
+
+  const chats = data.map(i => i.chats);
+
+  res.json(chats);
 });
 
-app.get("/chats/:id/messages", (req, res) => {
-  db.all(`
-    SELECT * FROM chat_messages
-    WHERE chat_id = ?
-    ORDER BY id ASC
-  `, [req.params.id], (err, rows) => res.json(rows));
+app.get("/chats/:id/messages", async (req, res) => {
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .select("*")
+    .eq("chat_id", req.params.id)
+    .order("id", { ascending: true });
+
+  if (error) {
+    console.error("GET MSG ERROR:", error);
+    return res.status(500).json(error);
+  }
+
+  res.json(data);
 });
 
-app.post("/chats/:id/messages", (req, res) => {
+app.post("/chats/:id/messages", async (req, res) => {
+  const login = req.headers["x-login"];
   const { text } = req.body;
-  const login = req.headers["x-login"];
-  const chatId = req.params.id;
 
-  db.run(`
-    INSERT INTO chat_messages (chat_id, user_login, text)
-    VALUES (?, ?, ?)
-  `, [chatId, login, text], () => res.json({ ok: true }));
+  const { error } = await supabase
+    .from("chat_messages")
+    .insert([{
+      chat_id: req.params.id,
+      user_login: login,
+      text
+    }]);
+
+  if (error) {
+    console.error("SEND MSG ERROR:", error);
+    return res.status(500).json(error);
+  }
+
+  res.json({ ok: true });
 });
 
 
