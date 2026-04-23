@@ -193,39 +193,25 @@ app.put("/leads/:id", async (req, res) => {
 
 
 // ===== CHATS (SQLITE) =====
-app.post("/chats", async (req, res) => {
-  const role = req.headers["x-role"];
-  const { name, users } = req.body;
-
-  if (role !== "admin") return res.sendStatus(403);
-
-  const { data: chat, error } = await supabase
-    .from("chats")
-    .insert([{ name, created_by: role }])
-    .select()
-    .single();
-
-  if (error) {
-    console.error("CREATE CHAT ERROR:", error);
-    return res.status(500).json(error);
-  }
-
-  const usersData = users.map(u => ({
-    chat_id: chat.id,
-    user_login: u
-  }));
-
-  await supabase.from("chat_users").insert(usersData);
-
-  res.json(chat);
-});
-
 app.get("/chats", async (req, res) => {
   const login = req.headers["x-login"];
 
   const { data, error } = await supabase
     .from("chat_users")
-    .select("chat_id, chats(*)")
+    .select(`
+      chat_id,
+      chats (
+        id,
+        name,
+        created_at,
+        chat_messages (
+          id,
+          text,
+          created_at,
+          user_login
+        )
+      )
+    `)
     .eq("user_login", login);
 
   if (error) {
@@ -233,7 +219,17 @@ app.get("/chats", async (req, res) => {
     return res.status(500).json(error);
   }
 
-  const chats = data.map(i => i.chats);
+  const chats = data.map(i => {
+    const chat = i.chats;
+
+    const last = chat.chat_messages
+      ?.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+
+    return {
+      ...chat,
+      last_message: last || null
+    };
+  });
 
   res.json(chats);
 });
@@ -304,7 +300,22 @@ app.put("/tasks/:id", (req, res) => {
 
 
 // ===== START =====
+app.delete('/chats/:id', async (req, res) => {
+  const id = req.params.id;
+
+  try {
+    await supabase.from('chat_messages').delete().eq('chat_id', id);
+    await supabase.from('chat_users').delete().eq('chat_id', id);
+    await supabase.from('chats').delete().eq('id', id);
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error("DELETE CHAT ERROR:", e);
+    res.status(500).json({ error: 'delete_failed' });
+  }
+});
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log("SERVER RUNNING ON PORT " + PORT);
-});
+  
+ 
