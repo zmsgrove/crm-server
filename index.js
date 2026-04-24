@@ -263,24 +263,28 @@ app.get("/chats/:id/messages", async (req, res) => {
   res.json(data);
 });
 
-app.post("/chats/:id/messages", async (req, res) => {
+app.post("/chats", async (req, res) => {
+  const { name, users } = req.body;
   const login = req.headers["x-login"];
-  const { text } = req.body;
 
-  const { error } = await supabase
-    .from("chat_messages")
-    .insert([{
-      chat_id: req.params.id,
-      user_login: login,
-      text
-    }]);
+  // 1. создаём чат
+  const { data: chat, error } = await supabase
+    .from("chats")
+    .insert([{ name, created_by: login }])
+    .select()
+    .single();
 
-  if (error) {
-    console.error("SEND MSG ERROR:", error);
-    return res.status(500).json(error);
-  }
+  if (error) return res.status(500).json(error);
 
-  res.json({ ok: true });
+  // 2. добавляем участников
+  const usersToInsert = users.map(u => ({
+    chat_id: chat.id,
+    user_login: u
+  }));
+
+  await supabase.from("chat_users").insert(usersToInsert);
+
+  res.json(chat);
 });
 
 
