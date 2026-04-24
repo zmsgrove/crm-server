@@ -153,8 +153,9 @@ const payload = {
   phone: phone || "",
   product: product || "",
   city: city || "",
-  description: description || "", // 🔥 ДОБАВЬ
-  status: status || "new"
+  description: description || "",
+  status: status || "new",
+  created_at: new Date().toISOString() // 🔥 КРИТИЧНО
 };
 
   console.log("CREATE LEAD PAYLOAD:", payload);
