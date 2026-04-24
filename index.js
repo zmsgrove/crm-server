@@ -212,36 +212,34 @@ app.get("/chats", async (req, res) => {
   const login = req.headers["x-login"];
 
   const { data, error } = await supabase
-    .from("chat_users")
+    .from("chats")
     .select(`
-      chat_id,
-      chats (
+      id,
+      name,
+      created_at,
+      chat_users!inner(user_login),
+      chat_messages (
         id,
-        name,
+        text,
         created_at,
-        chat_messages (
-          id,
-          text,
-          created_at,
-          user_login
-        )
+        user_login
       )
     `)
-    .eq("user_login", login);
+    .eq("chat_users.user_login", login);
 
   if (error) {
     console.error("GET CHATS ERROR:", error);
     return res.status(500).json(error);
   }
 
-  const chats = data.map(i => {
-    const chat = i.chats;
-
+  const chats = data.map(chat => {
     const last = chat.chat_messages
       ?.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
 
     return {
-      ...chat,
+      id: chat.id,
+      name: chat.name,
+      created_at: chat.created_at,
       last_message: last || null
     };
   });
