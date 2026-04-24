@@ -130,7 +130,7 @@ app.get("/leads", async (req, res) => {
     .select("*")
     .order("id", { ascending: false });
 
-  if (role === "uralsk") query = query.eq("city", "Уральск");
+  if (role === "uralsk") query = query.eq("city", "%урал%");
   if (role === "atyrau") query = query.eq("city", "Атырау");
   if (role === "aktobe") query = query.eq("city", "Актобе");
 
