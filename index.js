@@ -146,15 +146,16 @@ app.get("/leads", async (req, res) => {
 
 // CREATE
 app.post("/leads", async (req, res) => {
-  const { name, phone, product, city, status } = req.body;
+  const { name, phone, product, city, status, description } = req.body;
 
-  const payload = {
-    name: name || "",
-    phone: phone || "",
-    product: product || "",
-    city: city || "",
-    status: status || "new"
-  };
+const payload = {
+  name: name || "",
+  phone: phone || "",
+  product: product || "",
+  city: city || "",
+  description: description || "", // 🔥 ДОБАВЬ
+  status: status || "new"
+};
 
   console.log("CREATE LEAD PAYLOAD:", payload);
 
