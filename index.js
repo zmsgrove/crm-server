@@ -287,6 +287,26 @@ app.post("/chats", async (req, res) => {
   res.json(chat);
 });
 
+app.post("/chats/:id/messages", async (req, res) => {
+  const { text } = req.body;
+  const login = req.headers["x-login"];
+
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .insert([{
+      chat_id: req.params.id,
+      text,
+      user_login: login
+    }])
+    .select();
+
+  if (error) {
+    console.error("SEND MSG ERROR:", error);
+    return res.status(500).json(error);
+  }
+
+  res.json(data[0]);
+});
 
 // ===== TASKS =====
 app.get("/tasks", (req, res) => {
