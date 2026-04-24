@@ -130,9 +130,9 @@ app.get("/leads", async (req, res) => {
     .select("*")
     .order("id", { ascending: false });
 
-  if (role === "uralsk") query = query.eq("city", "%урал%");
-  if (role === "atyrau") query = query.eq("city", "Атырау");
-  if (role === "aktobe") query = query.eq("city", "Актобе");
+if (role === "uralsk") query = query.ilike("city", "%урал%");
+if (role === "atyrau") query = query.ilike("city", "%атыр%");
+if (role === "aktobe") query = query.ilike("city", "%актоб%");
 
   const { data, error } = await query;
 
