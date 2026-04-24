@@ -191,6 +191,20 @@ app.put("/leads/:id", async (req, res) => {
   res.json({ ok: true });
 });
 
+// DELETE LEAD
+app.delete("/leads/:id", async (req, res) => {
+  const { error } = await supabase
+    .from("leads")
+    .delete()
+    .eq("id", req.params.id);
+
+  if (error) {
+    console.error("DELETE LEAD ERROR:", error);
+    return res.status(500).json(error);
+  }
+
+  res.json({ ok: true });
+});
 
 // ===== CHATS (SQLITE) =====
 app.get("/chats", async (req, res) => {
