@@ -482,13 +482,13 @@ app.post("/tasks", async (req, res) => {
     const { data, error } = await supabase
       .from("tasks")
       .insert([{
-        title,
-        short,
-        description,
+        title: title,
+        short: short,
+        description: description,
         creator_login: creator,
         executor_login: executor,
         status: "new",
-        deadline
+        deadline: deadline
       }])
       .select()
       .single();
@@ -498,6 +498,7 @@ app.post("/tasks", async (req, res) => {
       return res.status(500).json(error);
     }
 
+    // watchers
     if (watchers && watchers.length) {
       const rows = watchers.map(w => ({
         task_id: data.id,
