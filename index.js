@@ -1,3 +1,5 @@
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 require('dotenv').config();
 
 console.log("MY SERVER VERSION SUPABASE");
@@ -478,6 +480,33 @@ app.get("/task-watchers", async (req, res) => {
   res.json(data);
 });
 
+app.post("/tilda", async (req, res) => {
+  try {
+    const data = req.body;
+
+    console.log("Tilda lead:", data);
+
+    const { error } = await supabase.from("leads").insert([
+      {
+        name: data.name || "",
+        phone: data.phone || "",
+        comment: data.comment || "",
+        created_at: new Date().toISOString()
+      }
+    ]);
+
+    if (error) {
+      console.error(error);
+      return res.status(500).json(error);
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).send("error");
+  }
+});
+
 // CREATE
 app.post("/tasks", async (req, res) => {
   try {
@@ -613,6 +642,34 @@ app.post("/task-comments", async (req, res) => {
   res.json(data);
 });
 
+app.get("/wazzup/chats", async (req, res) => {
+  const { data } = await supabase
+    .from("chats")
+    .select("*")
+    .eq("type", "whatsapp");
+
+  res.json(data || []);
+});
+app.get("/wazzup/chats/:id/messages", async (req, res) => {
+  const { data } = await supabase
+    .from("messages")
+    .select("*")
+    .eq("chat_id", req.params.id)
+    .order("id", { ascending: true });
+
+  res.json(data || []);
+});
+app.post("/wazzup/send", async (req, res) => {
+  const { chatId, text } = req.body;
+
+  await supabase.from("messages").insert({
+    chat_id: chatId,
+    text,
+    direction: "outbound"
+  });
+
+  res.json({ ok: true });
+});
 
 // ===== START =====
 app.delete('/chats/:id', async (req, res) => {
