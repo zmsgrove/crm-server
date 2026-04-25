@@ -411,13 +411,23 @@ app.post("/chats/:id/messages", async (req, res) => {
 });
 
 // ===== TASKS =====
-app.get("/tasks", (req, res) => {
-  const login = req.headers["x-login"];
+app.get('/tasks', (req, res) => {
+  const login = req.query.login;
 
-  db.all(`SELECT * FROM tasks WHERE user_login = ?`,
-    [login],
-    (err, rows) => res.json(rows)
-  );
+  const query = `
+    SELECT DISTINCT t.*
+    FROM tasks t
+    LEFT JOIN task_watchers tw ON t.id = tw.task_id
+    WHERE 
+      t.creator_login = ?
+      OR t.executor_login = ?
+      OR tw.user_login = ?
+  `;
+
+  db.all(query, [login, login, login], (err, rows) => {
+    if (err) return res.json([]);
+    res.json(rows);
+  });
 });
 
 app.post("/tasks", (req, res) => {
