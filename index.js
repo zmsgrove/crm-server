@@ -174,12 +174,12 @@ db.serialize(() => {
   },
 ];
 
-  users.forEach((u) => {
-    db.run(
-      `INSERT OR IGNORE INTO users (login, password, role, name, position)
-VALUES (?, ?, ?, ?, ?)
-    );
-  });
+users.forEach((u) => {
+  db.run(
+    `INSERT OR IGNORE INTO users (login, password, role, name, position)
+     VALUES (?, ?, ?, ?, ?)`,
+    [u.login, u.password, u.role, u.name, u.position]
+  );
 });
 
 // ===== LOGIN =====
