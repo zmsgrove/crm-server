@@ -50,11 +50,11 @@ db.serialize(() => {
 
   db.run(`
     CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      login TEXT UNIQUE,
-      password TEXT,
-      role TEXT
-    )
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  login TEXT UNIQUE,
+  password TEXT,
+  role TEXT
+)
   `);
 
   db.run(`
@@ -88,16 +88,96 @@ db.serialize(() => {
 // ===== USERS =====
 db.serialize(() => {
   const users = [
-    { login: "admin", password: "Skupka2026ad", role: "admin" },
-    { login: "uralsk", password: "Oral2026uu", role: "uralsk" },
-    { login: "atyrau", password: "Skupka26aa", role: "atyrau" },
-    { login: "aktobe", password: "Begdos1020", role: "aktobe" },
-  ];
+  {
+    login: "MaksatovS",
+    password: "Syrym10599",
+    role: "dir",
+    name: "Максатов Сырым",
+    position: "Директор"
+  },
+  {
+    login: "KylyshbaevaM",
+    password: "Makpal10321",
+    role: "sysadmin",
+    name: "Кылышбаева Макпал",
+    position: "Системный Администратор"
+  },
+  {
+    login: "KylyshbaevaM",
+    password: "Makpal10321",
+    role: "sysadmin",
+    name: "Кылышбаева Макпал",
+    position: "Системный Администратор"
+  },
+  {
+    login: "AleksandrovD",
+    password: "Daniil99876",
+    role: "rgmu",
+    name: "Александров Даниил",
+    position: "РГМ г. Уральск"
+  }
+  {
+    login: "AminovN",
+    password: "Nyrlan10102",
+    role: "rgma",
+    name: "Аминов Нурлан",
+    position: "РГМ г. Атырау"
+  }
+  {
+    login: "Revizor",
+    password: "Revizor2026skupka",
+    role: "rev",
+    name: "СТРевизор",
+    position: "Ревизор Компании"
+  }
+  {
+    login: "ShatanovR",
+    password: "RustemSMM1",
+    role: "smm",
+    name: "Шатанов Рустем",
+    position: "Маркетолог"
+  }
+  {
+    login: "zmsgrove",
+    password: "Marakoda8585",
+    role: "admin",
+    name: "Админ",
+    position: "Админ"
+  }
+  {
+    login: "k162",
+    password: "Kyrman1621",
+    role: "uralsk",
+    name: "Филиал к162",
+    position: "СПО г. Уральск"
+  }
+  {
+    login: "sv47",
+    password: "Sever7055",
+    role: "uralsk",
+    name: "Филиал св47",
+    position: "СПО г. Уральск"
+  }
+  {
+    login: "a21",
+    password: "Abyl60333",
+    role: "aktobe",
+    name: "Филиал a21",
+    position: "СПО г. Актобе"
+  }
+  {
+    login: "s32",
+    password: "Satpaeva1010",
+    role: "atyray",
+    name: "Филиал с32",
+    position: "СПО г. Атырау"
+  }
+];
 
   users.forEach((u) => {
     db.run(
-      `INSERT OR IGNORE INTO users (login, password, role) VALUES (?, ?, ?)`,
-      [u.login, u.password, u.role]
+      `INSERT OR IGNORE INTO users (login, password, role, name, position)
+VALUES (?, ?, ?, ?, ?)
     );
   });
 });
