@@ -542,6 +542,45 @@ app.get("/task-comments", async (req, res) => {
   res.json(data);
 });
 
+app.get("/task-checklist", async (req, res) => {
+  const { taskId } = req.query;
+
+  const { data, error } = await supabase
+    .from("task_checklist")
+    .select("*")
+    .eq("task_id", taskId)
+    .order("id", { ascending: true });
+
+  if (error) return res.status(500).json(error);
+
+  res.json(data);
+});
+
+app.put("/task-checklist/:id", async (req, res) => {
+  const { done } = req.body;
+
+  await supabase
+    .from("task_checklist")
+    .update({ done })
+    .eq("id", req.params.id);
+
+  res.json({ ok: true });
+});
+
+app.post("/task-checklist", async (req, res) => {
+  const { taskId, text } = req.body;
+
+  const { data, error } = await supabase
+    .from("task_checklist")
+    .insert([{ task_id: taskId, text }])
+    .select()
+    .single();
+
+  if (error) return res.status(500).json(error);
+
+  res.json(data);
+});
+
 app.post("/task-comments", async (req, res) => {
   const { taskId, text } = req.body;
   const login = req.headers["x-login"];
