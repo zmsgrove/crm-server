@@ -1,5 +1,3 @@
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 require('dotenv').config();
 
 console.log("MY SERVER VERSION SUPABASE");
@@ -20,6 +18,9 @@ const supabase = createClient(
 );
 
 const app = express();
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // ===== DEBUG =====
 app.use((req, res, next) => {
