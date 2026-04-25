@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 console.log("MY SERVER VERSION SUPABASE");
 
 const express = require("express");
@@ -48,14 +50,16 @@ db.serialize(() => {
     )
   `);
 
-  db.run(`
-    CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  login TEXT UNIQUE,
-  password TEXT,
-  role TEXT
-)
-  `);
+db.run(`
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    login TEXT UNIQUE,
+    password TEXT,
+    role TEXT,
+    name TEXT,
+    position TEXT
+  )
+`);
 
   db.run(`
     CREATE TABLE IF NOT EXISTS chat_messages (
@@ -96,11 +100,11 @@ db.serialize(() => {
     position: "Директор"
   },
   {
-    login: "KylyshbaevaM",
-    password: "Makpal10321",
-    role: "sysadmin",
-    name: "Кылышбаева Макпал",
-    position: "Системный Администратор"
+    login: "KoshaB",
+    password: "Begdos10102",
+    role: "zamdir",
+    name: "Кожа Бегдос",
+    position: "Зам. Директора"
   },
   {
     login: "KylyshbaevaM",
