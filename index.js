@@ -188,6 +188,22 @@ users.forEach((u) => {
 
 });
 
+// ===== USERS LIST =====
+app.get("/users", (req, res) => {
+  db.all(
+    "SELECT login, name, position FROM users",
+    [],
+    (err, rows) => {
+      if (err) {
+        console.error("GET USERS ERROR:", err);
+        return res.status(500).json({ error: "db_error" });
+      }
+
+      res.json(rows);
+    }
+  );
+});
+
 // ===== LOGIN =====
 app.post("/api/auth/login", (req, res) => {
   const { login, password } = req.body;
