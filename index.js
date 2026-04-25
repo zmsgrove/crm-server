@@ -115,63 +115,63 @@ db.serialize(() => {
     role: "rgmu",
     name: "Александров Даниил",
     position: "РГМ г. Уральск"
-  }
+  },
   {
     login: "AminovN",
     password: "Nyrlan10102",
     role: "rgma",
     name: "Аминов Нурлан",
     position: "РГМ г. Атырау"
-  }
+  },
   {
     login: "Revizor",
     password: "Revizor2026skupka",
     role: "rev",
     name: "СТРевизор",
     position: "Ревизор Компании"
-  }
+  },
   {
     login: "ShatanovR",
     password: "RustemSMM1",
     role: "smm",
     name: "Шатанов Рустем",
     position: "Маркетолог"
-  }
+  },
   {
     login: "zmsgrove",
     password: "Marakoda8585",
     role: "admin",
     name: "Админ",
     position: "Админ"
-  }
+  },
   {
     login: "k162",
     password: "Kyrman1621",
     role: "uralsk",
     name: "Филиал к162",
     position: "СПО г. Уральск"
-  }
+  },
   {
     login: "sv47",
     password: "Sever7055",
     role: "uralsk",
     name: "Филиал св47",
     position: "СПО г. Уральск"
-  }
+  },
   {
     login: "a21",
     password: "Abyl60333",
     role: "aktobe",
     name: "Филиал a21",
     position: "СПО г. Актобе"
-  }
+  },
   {
     login: "s32",
     password: "Satpaeva1010",
     role: "atyray",
     name: "Филиал с32",
     position: "СПО г. Атырау"
-  }
+  },
 ];
 
   users.forEach((u) => {
