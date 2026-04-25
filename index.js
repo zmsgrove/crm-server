@@ -465,6 +465,19 @@ app.get("/tasks", async (req, res) => {
   }
 });
 
+app.get("/task-watchers", async (req, res) => {
+  const { taskId } = req.query;
+
+  const { data, error } = await supabase
+    .from("task_watchers")
+    .select("*")
+    .eq("task_id", taskId);
+
+  if (error) return res.status(500).json(error);
+
+  res.json(data);
+});
+
 // CREATE
 app.post("/tasks", async (req, res) => {
   try {
