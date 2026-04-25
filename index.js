@@ -528,6 +528,39 @@ app.put("/tasks/:id", async (req, res) => {
   res.json({ ok: true });
 });
 
+app.get("/task-comments", async (req, res) => {
+  const { taskId } = req.query;
+
+  const { data, error } = await supabase
+    .from("task_comments")
+    .select("*")
+    .eq("task_id", taskId)
+    .order("created_at", { ascending: true });
+
+  if (error) return res.status(500).json(error);
+
+  res.json(data);
+});
+
+app.post("/task-comments", async (req, res) => {
+  const { taskId, text } = req.body;
+  const login = req.headers["x-login"];
+
+  const { data, error } = await supabase
+    .from("task_comments")
+    .insert([{
+      task_id: taskId,
+      user_login: login,
+      text
+    }])
+    .select()
+    .single();
+
+  if (error) return res.status(500).json(error);
+
+  res.json(data);
+});
+
 
 // ===== START =====
 app.delete('/chats/:id', async (req, res) => {
