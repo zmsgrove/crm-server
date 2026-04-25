@@ -168,7 +168,7 @@ db.serialize(() => {
   {
     login: "s32",
     password: "Satpaeva1010",
-    role: "atyray",
+    role: "atyrau",
     name: "Филиал с32",
     position: "СПО г. Атырау"
   },
@@ -180,6 +180,8 @@ users.forEach((u) => {
      VALUES (?, ?, ?, ?, ?)`,
     [u.login, u.password, u.role, u.name, u.position]
   );
+});
+
 });
 
 // ===== LOGIN =====
