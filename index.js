@@ -40,15 +40,30 @@ app.get("/", (req, res) => {
 
 // ===== SQLITE TABLES (НЕ ТРОГАЕМ) =====
 db.serialize(() => {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS tasks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_login TEXT,
-      title TEXT,
-      status TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+db.run(`
+CREATE TABLE IF NOT EXISTS tasks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT,
+  short TEXT,
+  description TEXT,
+
+  creator_login TEXT,
+  executor_login TEXT,
+
+  status TEXT,
+  deadline TEXT,
+
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+`);
+
+db.run(`
+CREATE TABLE IF NOT EXISTS task_watchers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  task_id INTEGER,
+  user_login TEXT
+)
+`);
 
 db.run(`
   CREATE TABLE IF NOT EXISTS users (
@@ -429,15 +444,52 @@ app.get('/tasks', (req, res) => {
     res.json(rows);
   });
 });
-
 app.post("/tasks", (req, res) => {
-  const login = req.headers["x-login"];
-  const { title } = req.body;
+  const {
+    title,
+    short,
+    description,
+    executor,
+    watchers,
+    deadline
+  } = req.body;
+
+  const creator = req.headers["x-login"];
 
   db.run(`
-    INSERT INTO tasks (title, status, user_login)
-    VALUES (?, 'new', ?)
-  `, [title, login], () => res.json({ ok: true }));
+    INSERT INTO tasks (
+      title,
+      short,
+      description,
+      creator_login,
+      executor_login,
+      status,
+      deadline
+    )
+    VALUES (?, ?, ?, ?, ?, 'new', ?)
+  `,
+  [title, short, description, creator, executor, deadline],
+  function (err) {
+    if (err) return res.status(500).json({ error: err });
+
+    const taskId = this.lastID;
+
+    // 🔥 добавляем наблюдателей
+    if (watchers && watchers.length) {
+      const stmt = db.prepare(`
+        INSERT INTO task_watchers (task_id, user_login)
+        VALUES (?, ?)
+      `);
+
+      watchers.forEach(w => {
+        stmt.run(taskId, w);
+      });
+
+      stmt.finalize();
+    }
+
+    res.json({ ok: true, id: taskId });
+  });
 });
 
 app.put("/tasks/:id", (req, res) => {
