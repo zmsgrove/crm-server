@@ -425,79 +425,106 @@ app.post("/chats/:id/messages", async (req, res) => {
   res.json(data[0]);
 });
 
-// ===== TASKS =====
-app.get('/tasks', (req, res) => {
-  const login = req.query.login;
+// ===== TASKS (SUPABASE) =====
 
-  const query = `
-    SELECT DISTINCT t.*
-    FROM tasks t
-    LEFT JOIN task_watchers tw ON t.id = tw.task_id
-    WHERE 
-      t.creator_login = ?
-      OR t.executor_login = ?
-      OR tw.user_login = ?
-  `;
+// GET
+app.get("/tasks", async (req, res) => {
+  try {
+    const login = req.query.login;
 
-  db.all(query, [login, login, login], (err, rows) => {
-    if (err) return res.json([]);
-    res.json(rows);
-  });
+    const { data: tasks, error } = await supabase
+      .from("tasks")
+      .select("*");
+
+    if (error) {
+      console.error(error);
+      return res.json([]);
+    }
+
+    const { data: watchers } = await supabase
+      .from("task_watchers")
+      .select("*");
+
+    const visible = tasks.filter(t => {
+      const isWatcher = watchers.some(
+        w => w.task_id === t.id && w.user_login === login
+      );
+
+      return (
+        t.creator_login === login ||
+        t.executor_login === login ||
+        isWatcher
+      );
+    });
+
+    res.json(visible);
+
+  } catch (err) {
+    console.error(err);
+    res.json([]);
+  }
 });
-app.post("/tasks", (req, res) => {
-  const {
-    title,
-    short,
-    description,
-    executor,
-    watchers,
-    deadline
-  } = req.body;
 
-  const creator = req.headers["x-login"];
-
-  db.run(`
-    INSERT INTO tasks (
+// CREATE
+app.post("/tasks", async (req, res) => {
+  try {
+    const {
       title,
       short,
       description,
-      creator_login,
-      executor_login,
-      status,
+      executor,
+      watchers,
       deadline
-    )
-    VALUES (?, ?, ?, ?, ?, 'new', ?)
-  `,
-  [title, short, description, creator, executor, deadline],
-  function (err) {
-    if (err) return res.status(500).json({ error: err });
+    } = req.body;
 
-    const taskId = this.lastID;
+    const creator = req.headers["x-login"];
 
-    // 🔥 добавляем наблюдателей
-    if (watchers && watchers.length) {
-      const stmt = db.prepare(`
-        INSERT INTO task_watchers (task_id, user_login)
-        VALUES (?, ?)
-      `);
+    const { data, error } = await supabase
+      .from("tasks")
+      .insert([{
+        title,
+        short,
+        description,
+        creator_login: creator,
+        executor_login: executor,
+        status: "new",
+        deadline
+      }])
+      .select()
+      .single();
 
-      watchers.forEach(w => {
-        stmt.run(taskId, w);
-      });
-
-      stmt.finalize();
+    if (error) {
+      console.error(error);
+      return res.status(500).json(error);
     }
 
-    res.json({ ok: true, id: taskId });
-  });
+    if (watchers && watchers.length) {
+      const rows = watchers.map(w => ({
+        task_id: data.id,
+        user_login: w
+      }));
+
+      await supabase.from("task_watchers").insert(rows);
+    }
+
+    res.json(data);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "server error" });
+  }
 });
 
-app.put("/tasks/:id", (req, res) => {
+// UPDATE STATUS
+app.put("/tasks/:id", async (req, res) => {
   const { status } = req.body;
 
-  db.run(`
-    UPDATE tasks SET status=? WHERE id=?
-  `, [status, req.params.id], () => res.json({ ok: true }));
+  await supabase
+    .from("tasks")
+    .update({ status })
+    .eq("id", req.params.id);
+
+  res.json({ ok: true });
 });
 
 
