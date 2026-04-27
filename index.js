@@ -576,6 +576,53 @@ app.post("/zrs", async (req, res) => {
   res.json(data);
 });
 
+app.get("/cash/:type", async (req, res) => {
+  const table = req.params.type === "morning"
+    ? "morning_reports"
+    : "evening_reports";
+
+  const { data, error } = await supabase
+    .from(table)
+    .select("*")
+    .order("id", { ascending: false });
+
+  if (error) return res.status(500).json(error);
+
+  res.json(data);
+});
+
+app.post("/cash/:type", async (req, res) => {
+  const table = req.params.type === "morning"
+    ? "morning_reports"
+    : "evening_reports";
+
+  const { data, error } = await supabase
+    .from(table)
+    .insert([req.body])
+    .select();
+
+  if (error) return res.status(500).json(error);
+
+  res.json(data);
+});
+
+app.put("/cash/:type/:id", async (req, res) => {
+  const table = req.params.type === "morning"
+    ? "morning_reports"
+    : "evening_reports";
+
+  const { error } = await supabase
+    .from(table)
+    .update(req.body)
+    .eq("id", req.params.id);
+
+  if (error) return res.status(500).json(error);
+
+  res.json({ ok: true });
+});
+
+
+
 app.put("/zrs/:id", async (req, res) => {
   const { status } = req.body;
 
