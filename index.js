@@ -494,6 +494,40 @@ app.get("/shift", async (req, res) => {
   res.json(data);
 });
 
+app.post("/shift", async (req, res) => {
+  const {
+    creator,
+    city,
+    name,
+    datetime,
+    replace,
+    replaceName,
+    comment,
+    status
+  } = req.body;
+
+  const { data, error } = await supabase
+    .from("shift_cards")
+    .insert([{
+      creator,
+      city,
+      name,
+      datetime,
+      replace,
+      replace_name: replaceName,
+      comment,
+      status
+    }])
+    .select();
+
+  if (error) {
+    console.error("CREATE SHIFT ERROR:", error);
+    return res.status(500).json(error);
+  }
+
+  res.json(data);
+});
+
 app.post("/task-watchers", async (req, res) => {
   const { taskId, login } = req.body;
 
