@@ -528,6 +528,72 @@ app.post("/shift", async (req, res) => {
   res.json(data);
 });
 
+app.get("/zrs", async (req, res) => {
+  const { data, error } = await supabase
+    .from("zrs_cards")
+    .select("*")
+    .order("id", { ascending: false });
+
+  if (error) {
+    console.error("GET ZRS ERROR:", error);
+    return res.status(500).json(error);
+  }
+
+  res.json(data);
+});
+
+app.post("/zrs", async (req, res) => {
+  const {
+    creator,
+    goal,
+    amount,
+    date,
+    description,
+    target,
+    type,
+    status
+  } = req.body;
+
+  const { data, error } = await supabase
+    .from("zrs_cards")
+    .insert([{
+      creator,
+      goal,
+      amount,
+      date,
+      description,
+      target,
+      type,
+      status
+    }])
+    .select();
+
+  if (error) {
+    console.error("CREATE ZRS ERROR:", error);
+    return res.status(500).json(error);
+  }
+
+  res.json(data);
+});
+
+app.put("/zrs/:id", async (req, res) => {
+  const { status } = req.body;
+
+  const { error } = await supabase
+    .from("zrs_cards")
+    .update({ status })
+    .eq("id", req.params.id);
+
+  if (error) {
+    console.error("UPDATE ZRS ERROR:", error);
+    return res.status(500).json(error);
+  }
+
+  res.json({ ok: true });
+});
+
+
+
 app.post("/task-watchers", async (req, res) => {
   const { taskId, login } = req.body;
 
