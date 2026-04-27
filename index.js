@@ -468,15 +468,23 @@ app.get("/tasks", async (req, res) => {
   }
 });
 
-app.get("/task-watchers", async (req, res) => {
-  const { taskId } = req.query;
+app.post("/task-watchers", async (req, res) => {
+  const { taskId, login } = req.body;
+
+  console.log("ADD WATCHER:", taskId, login); // 🔥 для проверки
 
   const { data, error } = await supabase
     .from("task_watchers")
-    .select("*")
-    .eq("task_id", taskId);
+    .insert([{
+      task_id: taskId,
+      user_login: login
+    }])
+    .select();
 
-  if (error) return res.status(500).json(error);
+  if (error) {
+    console.error("ADD WATCHER ERROR:", error);
+    return res.status(500).json(error);
+  }
 
   res.json(data);
 });
@@ -561,12 +569,23 @@ app.post("/tasks", async (req, res) => {
 
 // UPDATE STATUS
 app.put("/tasks/:id", async (req, res) => {
-  const { status } = req.body;
+  const { status, title, description } = req.body;
 
-  await supabase
+  const updateData = {};
+
+  if (status !== undefined) updateData.status = status;
+  if (title !== undefined) updateData.title = title;
+  if (description !== undefined) updateData.description = description;
+
+  const { error } = await supabase
     .from("tasks")
-    .update({ status })
+    .update(updateData)
     .eq("id", req.params.id);
+
+  if (error) {
+    console.error("UPDATE TASK ERROR:", error);
+    return res.status(500).json(error);
+  }
 
   res.json({ ok: true });
 });
