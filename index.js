@@ -428,6 +428,22 @@ app.post("/chats/:id/messages", async (req, res) => {
   res.json(data[0]);
 });
 
+app.get("/task-watchers", async (req, res) => {
+  const { taskId } = req.query;
+
+  const { data, error } = await supabase
+    .from("task_watchers")
+    .select("*")
+    .eq("task_id", taskId);
+
+  if (error) {
+    console.error("GET WATCHERS ERROR:", error);
+    return res.status(500).json(error);
+  }
+
+  res.json(data);
+});
+
 // ===== TASKS (SUPABASE) =====
 
 // GET
@@ -471,22 +487,19 @@ app.get("/tasks", async (req, res) => {
 app.post("/task-watchers", async (req, res) => {
   const { taskId, login } = req.body;
 
-  console.log("ADD WATCHER:", taskId, login); // 🔥 для проверки
-
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("task_watchers")
     .insert([{
       task_id: taskId,
       user_login: login
-    }])
-    .select();
+    }]);
 
   if (error) {
-    console.error("ADD WATCHER ERROR:", error);
+    console.error(error);
     return res.status(500).json(error);
   }
 
-  res.json(data);
+  res.json({ ok: true });
 });
 
 app.post("/tilda", async (req, res) => {
