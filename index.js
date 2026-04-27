@@ -483,6 +483,16 @@ app.get("/tasks", async (req, res) => {
     res.json([]);
   }
 });
+app.get("/shift", async (req, res) => {
+  const { data, error } = await supabase
+    .from("shift_cards")
+    .select("*")
+    .order("id", { ascending: false });
+
+  if (error) return res.status(500).json(error);
+
+  res.json(data);
+});
 
 app.post("/task-watchers", async (req, res) => {
   const { taskId, login } = req.body;
