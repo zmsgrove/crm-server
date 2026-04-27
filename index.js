@@ -578,8 +578,8 @@ app.post("/zrs", async (req, res) => {
 
 app.get("/cash/:type", async (req, res) => {
   const table = req.params.type === "morning"
-    ? "morning_reports"
-    : "evening_reports";
+    ? "cash_morning"
+    : "cash_evening";
 
   const { data, error } = await supabase
     .from(table)
@@ -592,9 +592,9 @@ app.get("/cash/:type", async (req, res) => {
 });
 
 app.post("/cash/:type", async (req, res) => {
-  const table = req.params.type === "morning"
-    ? "morning_reports"
-    : "evening_reports";
+const table = req.params.type === "morning"
+  ? "cash_morning"
+  : "cash_evening";
 
   const { data, error } = await supabase
     .from(table)
@@ -608,8 +608,8 @@ app.post("/cash/:type", async (req, res) => {
 
 app.put("/cash/:type/:id", async (req, res) => {
   const table = req.params.type === "morning"
-    ? "morning_reports"
-    : "evening_reports";
+    ? "cash_morning"
+    : "cash_evening";
 
   const { error } = await supabase
     .from(table)
